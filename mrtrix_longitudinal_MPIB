@@ -7,6 +7,7 @@ EOF
 
 . ./preamble
 
+# for all subjects and timepoints
 for parm in AKTIV????? ; do
 
 	cat preamble - >dwi2response.job <<EOF
@@ -36,8 +37,8 @@ EOF
 BARRIER2=$(qsub average_response.job -d. -j oe -o $HOME/logs/ -N "mrtrix_averesp" -W depend=afterok$BARRIER1)
 echo $BARRIER2
 
-# Two participants (AKTIV2124B AKTIV4223B) have incomplete data for timepoint A but they should still be included, that is why they are explicitly mentioned
-for parm in AKTIV????A  AKTIV4204B; do
+# for all subjects
+for parm in AKTIV????A; do
 
 	dir=$(echo $parm | cut -c 1-9);
 	
@@ -142,6 +143,7 @@ BARRIER4=$(qsub template.job -d. -j oe -o $HOME/logs/ -l mem=50gb,walltime=75:0:
 echo $BARRIER4
 
 # CAN RUN IN PARALLEL
+# for all subjects
 for parm in AKTIV???? ; do
 
     cat preamble - >FOD2template.job <<EOF
@@ -223,6 +225,7 @@ echo $BARRIER7
 mkdir -p template/log_fc
 mkdir -p template/fdc
 
+# for all subjects and timepoints
 for parm in AKTIV????? ; do
 
 	dir=$(echo $parm | cut -c 1-9);
