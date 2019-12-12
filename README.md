@@ -1,2 +1,2 @@
 # DWI
-Scripts for processing the diffusion weighhted data
+Scripts for processing the diffusion weighted data
