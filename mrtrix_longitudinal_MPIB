@@ -7,19 +7,39 @@ EOF
 
 . ./preamble
 
-# for all subjects and timepoints
 for parm in AKTIV????? ; do
 
 	cat preamble - >dwi2response.job <<EOF
 
+	# create tissue type segmentation --> could also base this on freesurfer parcellation image
+	$SING 5ttgen fsl $parm/MPrage/s${parm}*.nii $parm/MPrage/5tt.mif -nocrop
+
+	# coregister T1 to DWI via flirt
+	$SING fslmaths ${parm}/hifi_b0.nii.gz -Tmean ${parm}/hifi_b0_mean.nii.gz
+	$SING flirt -in $parm/MPrage/s${parm}*.nii -ref $parm/hifi_b0_mean.nii.gz -cost mutualinfo -dof 6 -omat $parm/MPrage/${parm}_struct2dwi.mat -out $parm/MPrage/${parm}_r2dwi.nii.gz
+
+	# convert matrix to mrtrix-format
+	$SING transformconvert $parm/MPrage/${parm}_struct2dwi.mat $parm/MPrage/s${parm}*.nii $parm/hifi_b0_mean.nii.gz flirt_import $parm/MPrage/${parm}_struct2dwi_mrtrix.txt
+
+	# apply matrix
+	$SING mrtransform $parm/MPrage/5tt.mif -linear $parm/MPrage/${parm}_struct2dwi_mrtrix.txt -interp nearest $parm/MPrage/5tt_r2dwi.mif
+
+	# create a GM/WM Boundary seed mask to define plausible streamline starting
+	$SING 5tt2gmwmi $parm/MPrage/5tt_r2dwi.mif  $parm/MPrage/gmwmSeed_r2dwi.mif
+
 	# Calculate tissue response functions UPDATED APRIL 2019
-	$SING dwi2response dhollander $parm/${parm}_preproc.nii $parm/response_wm.txt $parm/response_gm.txt $parm/response_csf.txt -voxels $parm/voxels.nii -nthreads 4 -mask $parm/brain_mask.nii -fslgrad $parm/${parm}_preproc.bvec $parm/${parm}_preproc.bval
+	$SING dwi2response dhollander $parm/${parm}_preproc.nii.gz $parm/response_wm.txt $parm/response_gm.txt $parm/response_csf.txt -voxels $parm/voxels.nii.gz -nthreads 4 -mask $parm/brain_mask.nii.gz -fslgrad $parm/${parm}_preproc.bvec $parm/${parm}_preproc.bval
 
 	# Calculate the diffusion tensor to extract md and fa 
-	$SING dwi2tensor $parm/${parm}_preproc.nii -mask $parm/brain_mask.nii -fslgrad $parm/${parm}_preproc.bvec $parm/${parm}_preproc.bval $parm/${parm}_tensor.mif
+	$SING dwi2tensor $parm/${parm}_preproc.nii.gz -mask $parm/brain_mask.nii.gz -fslgrad $parm/${parm}_preproc.bvec $parm/${parm}_preproc.bval $parm/${parm}_tensor.mif
 
 	# Extract md and fa 
-	$SING tensor2metric $parm/${parm}_tensor.mif -mask $parm/brain_mask.nii -adc $parm/${parm}_md.nii.gz -fa $parm/${parm}_fa.nii.gz
+	$SING tensor2metric $parm/${parm}_tensor.mif -mask $parm/brain_mask.nii.gz -adc $parm/${parm}_md.nii.gz -fa $parm/${parm}_fa.nii.gz
+	
+	# transform fa and md images to MNI space based on transformation from DTIfit (FSL_FDT)
+#	$SING applywarp --ref=../FSL_FDT/FSL_HCP1065_FA_1mm.nii.gz --in=$parm/${parm}_fa.nii.gz --warp=../FSL_FDT/$parm/${parm}_diff2standard.nii.gz --out=$parm/${parm}_fa_2_HCP1065.nii.gz
+#	$SING applywarp --ref=../FSL_FDT/FSL_HCP1065_FA_1mm.nii.gz --in=$parm/${parm}_md.nii.gz --warp=../FSL_FDT/$parm/${parm}_diff2standard.nii.gz --out=$parm/${parm}_md_2_HCP1065.nii.gz
+	
 EOF
 	TMPID=$(qsub dwi2response.job -l nodes=1:ppn=4 -d. -j oe -o $HOME/logs/ -N "mrtrix_dwi2response_${parm}")
 	BARRIER1=$BARRIER1":"$TMPID
@@ -37,8 +57,8 @@ EOF
 BARRIER2=$(qsub average_response.job -d. -j oe -o $HOME/logs/ -N "mrtrix_averesp" -W depend=afterok$BARRIER1)
 echo $BARRIER2
 
-# for all subjects
-for parm in AKTIV????A; do
+# Two participants (AKTIV2124B AKTIV4223B) have incomplete data for timepoint A but they should still be included, that is why they are explicitly mentioned
+for parm in AKTIV????A  AKTIV2124B AKTIV4223B; do
 
 	dir=$(echo $parm | cut -c 1-9);
 	
@@ -57,12 +77,12 @@ for parm in AKTIV????A; do
 	         cat >>tmp2.job <<EOF
 
 		     # upsample DW images to increase anatomical contrast and improve downstream spatial normalisation and statistics
-		     $SING mrresize ${dir}${tp}/${dir}${tp}_preproc.nii -vox 1.3 -nthreads 4 ${dir}${tp}/${dir}${tp}_preproc_upsampled.nii
+		     $SING mrresize ${dir}${tp}/${dir}${tp}_preproc.nii.gz -vox 1.3 -nthreads 4 ${dir}${tp}/${dir}${tp}_preproc_upsampled.nii.gz
 		     # upsample the mask image (we use the one created via bet and checked already!!)
-		     $SING mrresize ${dir}${tp}/brain_mask.nii -vox 1.3 -interp nearest ${dir}${tp}/${dir}${tp}_mask_upsampled.mif
+		     $SING mrresize ${dir}${tp}/brain_mask.nii.gz -vox 1.3 -interp nearest ${dir}${tp}/${dir}${tp}_mask_upsampled.mif
 
 		     # Calculate fod's (CSD) 
-		     $SING dwi2fod msmt_csd ${dir}${tp}/${dir}${tp}_preproc_upsampled.nii group_average_response_wm.txt ${dir}${tp}/wmfod.mif group_average_response_gm.txt ${dir}${tp}/gm.mif group_average_response_csf.txt ${dir}${tp}/csf.mif -mask ${dir}${tp}/${dir}${tp}_mask_upsampled.mif -fslgrad ${dir}${tp}/${dir}${tp}_preproc.bvec ${dir}${tp}/${dir}${tp}_preproc.bval
+		     $SING dwi2fod msmt_csd ${dir}${tp}/${dir}${tp}_preproc_upsampled.nii.gz group_average_response_wm.txt ${dir}${tp}/wmfod.mif group_average_response_gm.txt ${dir}${tp}/gm.mif group_average_response_csf.txt ${dir}${tp}/csf.mif -mask ${dir}${tp}/${dir}${tp}_mask_upsampled.mif -fslgrad ${dir}${tp}/${dir}${tp}_preproc.bvec ${dir}${tp}/${dir}${tp}_preproc.bval
 
 		     # Intensity normalisation to correct for global intensity differences between subjects
 		     $SING mtnormalise ${dir}${tp}/wmfod.mif ${dir}${tp}/wmfod_norm.mif ${dir}${tp}/gm.mif ${dir}${tp}/gm_norm.mif ${dir}${tp}/csf.mif ${dir}${tp}/csf_norm.mif -mask ${dir}${tp}/${dir}${tp}_mask_upsampled.mif                                                                                                                                                                                                                                                                     
@@ -106,12 +126,12 @@ EOF
 	   cat >>tmp2.job <<EOF
 
 	   # upsample DW images to increase anatomical contrast and improve downstream spatial normalisation and statistics
-	   $SING mrresize ${parm}/${parm}_preproc.nii -vox 1.3 -nthreads 4 ${parm}/${parm}_preproc_upsampled.nii
+	   $SING mrresize ${parm}/${parm}_preproc.nii.gz -vox 1.3 -nthreads 4 ${parm}/${parm}_preproc_upsampled.nii.gz
 	   # upsample the mask image (we use the one created via bet and checked already!!)
-	   $SING mrresize ${parm}/brain_mask.nii -vox 1.3 -interp nearest ${parm}/${parm}_mask_upsampled.mif
+	   $SING mrresize ${parm}/brain_mask.nii.gz -vox 1.3 -interp nearest ${parm}/${parm}_mask_upsampled.mif
 
 	   # Calculate fod's (CSD) 
-	   $SING dwi2fod msmt_csd ${parm}/${parm}_preproc_upsampled.nii group_average_response_wm.txt ${parm}/wmfod.mif group_average_response_gm.txt ${parm}/gm.mif group_average_response_csf.txt ${parm}/csf.mif -mask ${parm}/${parm}_mask_upsampled.mif -fslgrad ${parm}/${parm}_preproc.bvec ${parm}/${parm}_preproc.bval
+	   $SING dwi2fod msmt_csd ${parm}/${parm}_preproc_upsampled.nii.gz group_average_response_wm.txt ${parm}/wmfod.mif group_average_response_gm.txt ${parm}/gm.mif group_average_response_csf.txt ${parm}/csf.mif -mask ${parm}/${parm}_mask_upsampled.mif -fslgrad ${parm}/${parm}_preproc.bvec ${parm}/${parm}_preproc.bval
 
 	   # Intensity normalisation to correct for global intensity differences between subjects
 	   $SING mtnormalise ${parm}/wmfod.mif ${parm}/wmfod_norm.mif ${parm}/gm.mif ${parm}/gm_norm.mif ${parm}/csf.mif ${parm}/csf_norm.mif -mask ${parm}/${parm}_mask_upsampled.mif                                                                                                                                                                                                                                                                     
@@ -128,22 +148,21 @@ cat preamble - >template.job <<EOF
 # Generate a study-specific unbiased FOD template
 mkdir -p template/fod_input
 mkdir -p template/mask_input
+# 
+# # according to documentation 30-40 subjects should suffice for the template. Here we randomly pick 10 subjects from each group (the intra-subject template)
+# # and symbolic link all FOD images (and masks) into a single input folder
+$SING foreach `ls -d AKTIV1??? | sort -R | tail -10 | tr '\n' ' '`: ln -sr PRE/PRE_wmfod_template.mif template/fod_input/PRE.mif ";" ln -sr PRE/PRE_mask_intersection.mif template/mask_input/PRE.mif
+$SING foreach `ls -d AKTIV2??? | sort -R | tail -10 | tr '\n' ' '`: ln -sr PRE/PRE_wmfod_template.mif template/fod_input/PRE.mif ";" ln -sr PRE/PRE_mask_intersection.mif template/mask_input/PRE.mif
+$SING foreach `ls -d AKTIV3??? | sort -R | tail -10 | tr '\n' ' '`: ln -sr PRE/PRE_wmfod_template.mif template/fod_input/PRE.mif ";" ln -sr PRE/PRE_mask_intersection.mif template/mask_input/PRE.mif
+$SING foreach `ls -d AKTIV4??? | sort -R | tail -10 | tr '\n' ' '`: ln -sr PRE/PRE_wmfod_template.mif template/fod_input/PRE.mif ";" ln -sr PRE/PRE_mask_intersection.mif template/mask_input/PRE.mif
 
-# according to documentation 30-40 subjects should suffice for the template. Here we randomly pick 10 subjects from each group (the intra-subject template)
-# and symbolic link all FOD images (and masks) into a single input folder
-$SING foreach `ls -d AKTIV1??? | tr '\n' ' ' | sort -R | tail -10` : ln -sr PRE/PRE_wmfod_template.mif template/fod_input/PRE.mif ";" ln -sr PRE/PRE_mask_intersection.mif template/mask_input/PRE.mif
-$SING foreach `ls -d AKTIV2??? | tr '\n' ' ' | sort -R | tail -10` : ln -sr PRE/PRE_wmfod_template.mif template/fod_input/PRE.mif ";" ln -sr PRE/PRE_mask_intersection.mif template/mask_input/PRE.mif
-$SING foreach `ls -d AKTIV3??? | tr '\n' ' ' | sort -R | tail -10` : ln -sr PRE/PRE_wmfod_template.mif template/fod_input/PRE.mif ";" ln -sr PRE/PRE_mask_intersection.mif template/mask_input/PRE.mif
-$SING foreach `ls -d AKTIV4??? | tr '\n' ' ' | sort -R | tail -10` : ln -sr PRE/PRE_wmfod_template.mif template/fod_input/PRE.mif ";" ln -sr PRE/PRE_mask_intersection.mif template/mask_input/PRE.mif
-
-# biuld the inter-subject template
+# build the inter-subject template
 $SING population_template template/fod_input -mask_dir template/mask_input template/wmfod_template.mif -voxel_size 1.3 -nthreads 16
 EOF
 BARRIER4=$(qsub template.job -d. -j oe -o $HOME/logs/ -l mem=50gb,walltime=75:0:0,nodes=1:ppn=16 -N "mrtrix_template" -W depend=afterok$BARRIER3)
 echo $BARRIER4
 
 # CAN RUN IN PARALLEL
-# for all subjects
 for parm in AKTIV???? ; do
 
     cat preamble - >FOD2template.job <<EOF
@@ -172,7 +191,7 @@ EOF
 EOF
        fi
     done
-    TMPID=$(qsub FOD2template.job -l mem=50gb,nodes=1:ppn=4 -d. -j oe -o $HOME/logs/ -N "mrtrix_FOD2template" -W depend=afterok:$BARRIER4)
+    TMPID=$(qsub FOD2template.job -l mem=50gb,nodes=1:ppn=4 -d. -j oe -o $HOME/logs/ -N "mrtrix_FOD2template_${parm}" -W depend=afterok:$BARRIER4)
     BARRIER5=$BARRIER5":"$TMPID
 done
 echo $BARRIER5
@@ -196,7 +215,7 @@ for parm in AKTIV????A ; do
 	   # warp the FOD image from subjects with only timepoint A to the FOD group template space without FOD reorientation
 	   $SING mrtransform $parm/wmfod_norm.mif -warp $parm/${parm}2template_warp.mif -noreorientation $parm/fod_in_template_space.mif
 EOF
-       TMPID=$(qsub FOD2template.job -l mem=50gb,nodes=1:ppn=4 -d. -j oe -o $HOME/logs/ -N "mrtrix_FOD2template" -W depend=afterok:$BARRIER4)
+       TMPID=$(qsub FOD2template.job -l mem=50gb,nodes=1:ppn=4 -d. -j oe -o $HOME/logs/ -N "mrtrix_FOD2template_${parm}" -W depend=afterok:$BARRIER4)
        BARRIER6=$BARRIER6":"$TMPID
     fi
 done
@@ -214,8 +233,10 @@ $SING mrmath AKTIV?????/AKTIV*_dwimask_in_template_space.mif min template/templa
 $SING mrconvert template/wmfod_template.mif -coord 3 0 template/dc_term.mif
 $SING mrthreshold template/dc_term.mif template/voxel_mask.mif
 
-# segment all fixels from each FOD in the template image --> CHECK SIZE OF IMAGE, NO MORE THAN 500.000 fixels (mrinfo -size template/fixel_mask/directions.mif)
-$SING fod2fixel -mask template/voxel_mask.mif -fmls_peak_value 0.06 -nthreads 4 template/wmfod_template.mif template/fixel_mask
+# OLD VERSION with voxel_mask: segment all fixels from each FOD in the template image --> CHECK SIZE OF IMAGE, NO MORE THAN 500.000 fixels (mrinfo -size template/fixel_mask/directions.mif)
+# $SING fod2fixel -mask template/voxel_mask.mif -fmls_peak_value 0.06 -nthreads 4 template/wmfod_template.mif template/fixel_mask
+# UPDATED OCT19 to template_mask: 
+$SING fod2fixel -mask template/template_mask.mif -fmls_peak_value 0.06 -nthreads 4 template/wmfod_template.mif template/fixel_mask
 
 EOF
 BARRIER7=$(qsub template_mask.job -d. -j oe -o $HOME/logs/ -N "mrtrix_template_mask" -W depend=afterok$BARRIER5$BARRIER6)
@@ -225,7 +246,6 @@ echo $BARRIER7
 mkdir -p template/log_fc
 mkdir -p template/fdc
 
-# for all subjects and timepoints
 for parm in AKTIV????? ; do
 
 	dir=$(echo $parm | cut -c 1-9);
@@ -239,7 +259,7 @@ for parm in AKTIV????? ; do
 	$SING fod2fixel $parm/fod_in_template_space.mif -mask template/template_mask.mif $parm/fixel_in_template_space_NOT_REORIENTED -afd ${parm}_fd.mif
 EOF
 
-    if [ -f "$parm/${parm}_combined_warp.mif" ]; then
+    if [ -d "${dir}" ]; then
     
        cat >>subject2template.job <<EOF
 
@@ -265,7 +285,7 @@ EOF
 	$SING fixelcorrespondence $parm/fixel_in_template_space/${parm}_fd.mif template/fixel_mask template/fd ${parm}.mif
 EOF
 
-    if [ -f "$parm/${parm}_combined_warp.mif" ]; then
+    if [ -d "${dir}" ]; then
     
        cat >>subject2template.job <<EOF
 
@@ -286,13 +306,15 @@ EOF
     cat >>subject2template.job <<EOF
 
 	# compute log(FC) for group statistical analysis of FC (recommended) 
-	cp template/fc/index.mif  template/log_fc
-	cp template/fc/directions.mif template/log_fc
+	## SHOULD NOT BE REPEATED FOR EVERY SUBJECT!!!!
+	cp -n template/fc/index.mif  template/log_fc
+	cp -n template/fc/directions.mif template/log_fc
 	$SING mrcalc template/fc/${parm}.mif -log template/log_fc/${parm}.mif
 
 	# compute fibre density and fibre cross-section combined to account for changes to both within-voxel fibre density and macroscopic atrophy
-	cp template/fc/index.mif template/fdc
-	cp template/fc/directions.mif template/fdc
+	## SHOULD NOT BE REPEATED FOR EVERY SUBJECT!!!!
+	cp -n template/fc/index.mif template/fdc
+	cp -n template/fc/directions.mif template/fdc
 	$SING mrcalc template/fd/${parm}.mif template/fc/${parm}.mif -mult template/fdc/${parm}.mif
 EOF
 	TMPID=$(qsub subject2template.job -l mem=20gb -d. -j oe -o $HOME/logs/ -N "mrtrix_subj2template_${parm}" -W depend=afterok:$BARRIER7)
