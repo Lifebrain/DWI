@@ -38,10 +38,10 @@ else
    $SING mrcalc $BIDS_DWIpreproc/${parm}/${ses}/dwi/${parm}_${ses}_denoised.nii.gz $BIDS_DWIpreproc/${parm}/${ses}/dwi/${parm}_${ses}_denoised_unring.nii.gz -subtract $BIDS_DWIpreproc/${parm}/${ses}/dwi/${parm}_${ses}_residualUnringed.nii.gz
 
    # extract the b0 volumes from dwi series --> NEEDS TO BE CHECKED BUT SHOULD BE A MORE GENERAL VERSION THAN THE OLD ONE BELOW
-   $SING dwiextract -singleshell -shell 0 -bzero $BIDS_DWIpreproc/${parm}/${ses}/dwi/${parm}_${ses}_denoised_unring.nii.gz -fslgrad $BIDS_root/${parm}/${ses}/dwi/${parm}_${ses}*.bvec $BIDS_root/${parm}/${ses}/dwi/${parm}_${ses}*.bval $BIDS_DWIpreproc/${parm}/${ses}/dwi/${parm}_${ses}_b0.nii.gz -export_grad_fsl $BIDS_DWIpreproc/${parm}/${ses}/dwi/${parm}_${ses}_b0.bvec $BIDS_DWIpreproc/${parm}/${ses}/dwi/${parm}_${ses}_b0.bval
+   $SING dwiextract -bzero $BIDS_DWIpreproc/${parm}/${ses}/dwi/${parm}_${ses}_denoised_unring.nii.gz -fslgrad $BIDS_root/${parm}/${ses}/dwi/${parm}_${ses}*.bvec $BIDS_root/${parm}/${ses}/dwi/${parm}_${ses}*.bval $BIDS_DWIpreproc/${parm}/${ses}/dwi/${parm}_${ses}_b0.nii.gz -export_grad_fsl $BIDS_DWIpreproc/${parm}/${ses}/dwi/${parm}_${ses}_b0.bvec $BIDS_DWIpreproc/${parm}/${ses}/dwi/${parm}_${ses}_b0.bval
 
    # extract the b0 volumes from inverted PE series --> NEEDS TO BE CHECKED BUT SHOULD BE A MORE GENERAL VERSION THAN THE OLD ONE BELOW
-   $SING dwiextract -singleshell -shell 0 -bzero $BIDS_root/${parm}/${ses}/fmap/${parm}_${ses}_*dir-PA*.nii.gz -fslgrad $BIDS_root/${parm}/${ses}/fmap/${parm}_${ses}_*dir-PA*.bvec $BIDS_root/${parm}/${ses}/fmap/${parm}_${ses}_*dir-PA*.bval $BIDS_DWIpreproc/${parm}/${ses}/fmap/${parm}_${ses}_b0.nii.gz -export_grad_fsl $BIDS_DWIpreproc/${parm}/${ses}/fmap/${parm}_${ses}_b0.bvec $BIDS_DWIpreproc/${parm}/${ses}/fmap/${parm}_${ses}_b0.bval
+   $SING dwiextract -bzero $BIDS_root/${parm}/${ses}/fmap/${parm}_${ses}_*dir-PA*.nii.gz -fslgrad $BIDS_root/${parm}/${ses}/fmap/${parm}_${ses}_*dir-PA*.bvec $BIDS_root/${parm}/${ses}/fmap/${parm}_${ses}_*dir-PA*.bval $BIDS_DWIpreproc/${parm}/${ses}/fmap/${parm}_${ses}_b0.nii.gz -export_grad_fsl $BIDS_DWIpreproc/${parm}/${ses}/fmap/${parm}_${ses}_b0.bvec $BIDS_DWIpreproc/${parm}/${ses}/fmap/${parm}_${ses}_b0.bval
 
    # merge all b0 together in 1 file
    $SING fslmerge -t $BIDS_DWIpreproc/${parm}/${ses}/dwi/{parm}_${ses}_all_b0.nii.gz $BIDS_DWIpreproc/${parm}/${ses}/dwi/${parm}_${ses}_b0.nii.gz $BIDS_DWIpreproc/${parm}/${ses}/fmap/${parm}_${ses}_b0.nii.gz
@@ -52,7 +52,7 @@ else
 
    # run topup
    echo "Running topup on $parm"
-   $SING topup --imain=$BIDS_DWIpreproc/${parm}/${ses}/dwi/{parm}_${ses}_all_b0.nii.gz --datain=$BIDS_DWIpreproc/acqparams.txt --config=$BIDS_DWIpreproc/b02b0.cnf --out=$BIDS_DWIpreproc/${parm}/${ses}/dwi/topup_results --iout=$BIDS_DWIpreproc/${parm}/${ses}/dwi/hifi_b0 --fout=$BIDS_DWIpreproc/${parm}/${ses}/dwi/topup_fieldmap --logout=$BIDS_DWIpreproc/${parm}/${ses}/logs/topup_log.txt
+   $SING topup --imain=$BIDS_DWIpreproc/${parm}/${ses}/dwi/{parm}_${ses}_all_b0.nii.gz --datain=$BIDS_DWIpreproc/acqparams.txt --config=b02b0.cnf --out=$BIDS_DWIpreproc/${parm}/${ses}/dwi/topup_results --iout=$BIDS_DWIpreproc/${parm}/${ses}/dwi/hifi_b0 --fout=$BIDS_DWIpreproc/${parm}/${ses}/dwi/topup_fieldmap --logout=$BIDS_DWIpreproc/${parm}/${ses}/logs/topup_log.txt
 
    # create non-distorted brain mask --> MAYBE DO DIFFERENTLY, VIA SEGMENTATION & COREGISTRATION
    echo "Creating brain-mask on $parm"
