@@ -58,9 +58,9 @@ else
    echo "Creating brain-mask on $parm"
    $SING fslmaths $BIDS_DWIpreproc/${parm}/${ses}/dwi/hifi_b0 -Tmean $BIDS_DWIpreproc/${parm}/${ses}/dwi/hifi_b0_mean
    # brain extract the mean b0
-   $SING bet $BIDS_DWIpreproc/${parm}/${ses}/dwi/hifi_b0_mean -m -R -f 0.2 -g 0.1
+   $SING bet $BIDS_DWIpreproc/${parm}/${ses}/dwi/hifi_b0_mean $BIDS_DWIpreproc/${parm}/${ses}/dwi/${parm}_${ses}_b0_brain -m -R -f 0.2 -g 0.1
    # fix potential holes using ants
-   $SING ImageMath 3 $BIDS_DWIpreproc/${parm}/${ses}/dwi/${parm}_${ses}_b0_brainmask 'FillHoles' $BIDS_DWIpreproc/${parm}/${ses}/dwi/hifi_b0_mean_brain_mask
+   $SING ImageMath 3 $BIDS_DWIpreproc/${parm}/${ses}/dwi/${parm}_${ses}_brain_mask.nii.gz 'FillHoles' $BIDS_DWIpreproc/${parm}/${ses}/dwi/${parm}_${ses}_b0_brain_mask.nii.gz
 
    # mkdir check_mask
    # cp ${parm}/hifi_b0_mean.nii.gz check_mask/${parm}_b0mean.nii.gz
