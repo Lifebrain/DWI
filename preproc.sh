@@ -62,9 +62,9 @@ else
    # fix potential holes using ants
    $SING ImageMath 3 $BIDS_DWIpreproc/${parm}/${ses}/dwi/${parm}_${ses}_brain_mask.nii.gz 'FillHoles' $BIDS_DWIpreproc/${parm}/${ses}/dwi/${parm}_${ses}_b0_brain_mask.nii.gz
 
-   # mkdir check_mask
-   # cp ${parm}/hifi_b0_mean.nii.gz check_mask/${parm}_b0mean.nii.gz
-   # cp ${parm}/hifi_b0_brain_mask.nii.gz check_mask/${parm}_mask.nii.gz
+   # mkdir $BIDS_DWIpreproc/check_mask
+   # cp $BIDS_DWIpreproc/${parm}/${ses}/dwi/hifi_b0_mean.nii.gz $BIDS_DWIpreproc/check_mask/${parm}${ses}_b0mean.nii.gz
+   # cp $BIDS_DWIpreproc/${parm}/${ses}/dwi/${parm}_${ses}_brain_mask.nii.gz $BIDS_DWIpreproc/check_mask/${parm}${ses}_mask.nii.gz
 
    # create index file that tells eddy which of the lines in the acqparams.txt file is relevant for the dwi passed into eddy (only once needed, should be identical for all)
    # indx=""
