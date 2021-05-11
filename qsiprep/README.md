@@ -1,5 +1,5 @@
-# DWI
-Scripts for running qsiprep with eddy cuda.
+# qsiprep
+Scripts for preprocessing DWI data with qsiprep with eddy cuda.
 
 ## Installation
 The singularity image used for running qsiprep can be downloaded from docker hub with the command:
