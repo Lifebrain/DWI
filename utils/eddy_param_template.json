@@ -1,0 +1,20 @@
+{
+  "flm": "quadratic",
+  "slm": "SLM_REPLACE",
+  "fep": false,
+  "interp": "spline",
+  "nvoxhp": 1000,
+  "fudge_factor": 10,
+  "dont_sep_offs_move": false,
+  "dont_peas": false,
+  "niter": 8,
+  "method": "jac",
+  "repol": true,
+  "num_threads": NUM_THREADS_REPLACE,
+  "is_shelled": false,
+  "use_cuda": USE_CUDA_OPTION,
+  "cnr_maps": true,
+  "residuals": false,
+  "output_type": "NIFTI_GZ",
+  "args": "--very_verbose --fwhm=10,6,4,2,0,0,0,0 --ol_type=both --mporder=8 --s2v_niter=8 --slspec=SLSPEC_FILE_REPLACE --estimate_move_by_susceptibility"
+}
